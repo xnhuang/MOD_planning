@@ -126,7 +126,3 @@ function fleet_plan(controller::FleetController, vehicle_list, customer_list, cu
      (vehicle_list_out, controller) = trip_matching_rebalance_idle(controller, vehicle_list_out, customer_list_out, current_time, demand_distribution);
   end
 end
-
-function update_map(controller:FleetController, map)
-  controller.map = map
-end

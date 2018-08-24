@@ -1,0 +1,26 @@
+function trip_matching_rebalance(vehicle_list, customer_list, routing_cost, link_uid, map, w_wait, current_time, routing_policy)
+  if isempty(customer_list)
+    customer_list_out = customer_list
+    vehicle_list_out = vehicle_list
+    return (customer_list_out, vehicle_list_out)
+  end
+  tt_mat = routing_cost[1]
+  fc_mat = routing_cost[2]
+  vehicle_list_rebalance = filter(x -> x.rebalance==1, vehicle_list)
+  vehicle_list = filter(x -> x.rebalance==0, vehicle_list)
+  customer_list_rebalance = filter(x -> x.rebalance==1, customer_list)
+  customer_list = filter(x -> x.rebalance==0, customer_list)
+  
+  customer_list_out = customer_list 
+  vehicle_list_out = vehicle_list
+  vehicle_list_id = (x -> x.vehicle_id).(vehicle_list_out)
+  customer_list_id = (x -> x.customer_id).(customer_list_out)
+  
+  trip_not_empty = (x -> typeof(x.trip)==Trip).(vehicle_list)
+  vehicle_in_use = (x -> x.in_use).(vehicle_list)
+  trip_not_empty = trip_not_empty .& vehicle_in_use
+  
+  assigned_vehicle = vehicle_list[trip_not_empty]
+  #TODO not finished
+  return (customer_list_out, vehicle_list_out)
+end

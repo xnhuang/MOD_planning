@@ -2,7 +2,7 @@ clear,close all;clc;
 save_results = 1;
 load_test_case = 1;
 idle_balance = 0;
-current_path = [pwd,'\'];
+current_path = [pwd,'/'];
 traffic_state_path = strrep(current_path,'regularized_planning_MDP','polaris_result_17_18');
 load([traffic_state_path,'polaris_17_18_trip_location_associate_link.mat'])
 partition_path = strrep(current_path,'RegionRideShare\regularized_planning_MDP','TrafficModel\network_partition\demand_prior');

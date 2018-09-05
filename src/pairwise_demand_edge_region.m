@@ -1,0 +1,53 @@
+function can_combine = pairwise_demand_edge_region(od1,od2,tt_min,tt_max, max_wait_time, max_delay_time)
+
+
+location_sequence = [
+    od1(1),od1(2),od2(1),od2(2);
+    od1(1),od2(1),od1(2),od2(2);
+    od1(1),od2(1),od2(2),od1(2);
+    od2(1),od2(2),od1(1),od1(2);
+    od2(1),od1(1),od2(2),od1(2);
+    od2(1),od1(1),od1(2),od2(2);    
+];
+trip_travel_time_min = zeros(6,3);
+
+for trip_id = 1:6
+    trip = location_sequence(trip_id,:);
+    trip_travel_time_min(trip_id,:) = [
+        tt_min(trip(1),trip(2)), ...
+        tt_min(trip(2),trip(3)), ...
+        tt_min(trip(3),trip(4)) ...
+    ];
+end
+tt_1_min = tt_max(od1(1),od1(2));
+tt_2_min = tt_max(od2(1),od2(2));
+
+wait_time_1 = [0,0,0,trip_travel_time_min(4,1)+trip_travel_time_min(4,2),trip_travel_time_min(5,1),trip_travel_time_min(6,1)];
+wait_time_2 = [trip_travel_time_min(1,1)+trip_travel_time_min(1,2),trip_travel_time_min(2,1),trip_travel_time_min(3,1),0,0,0];
+total_time_1_max = [trip_travel_time_min(1,1),...
+    trip_travel_time_min(2,1)+trip_travel_time_min(2,2),...
+    trip_travel_time_min(3,1)+trip_travel_time_min(3,2)+trip_travel_time_min(3,3),...
+    trip_travel_time_min(4,1)+trip_travel_time_min(4,2)+trip_travel_time_min(4,3),...
+    trip_travel_time_min(5,1)+trip_travel_time_min(5,2)+trip_travel_time_min(5,3),...
+    trip_travel_time_min(6,1)+trip_travel_time_min(6,2)...
+    ];
+total_time_2_max = [...
+    trip_travel_time_min(1,1)+trip_travel_time_min(1,2)+trip_travel_time_min(1,3),...
+    trip_travel_time_min(2,1)+trip_travel_time_min(2,2)+trip_travel_time_min(2,3),...
+    trip_travel_time_min(3,1)+trip_travel_time_min(3,2),...
+    trip_travel_time_min(4,1),...
+    trip_travel_time_min(5,1)+trip_travel_time_min(5,2),...
+    trip_travel_time_min(6,1)+trip_travel_time_min(6,2)+trip_travel_time_min(6,3)...
+    ];
+delay_time_1_max = total_time_1_max - tt_1_min;
+delay_time_2_max = total_time_2_max - tt_2_min;
+delay_time_1_max([1,4,6]) = 0;
+delay_time_2_max([1,3,4]) = 0;
+
+wait_time_1_constraint = wait_time_1<=max_wait_time;
+wait_time_2_constraint = wait_time_2<=max_wait_time;
+delay_1_constraint = delay_time_1_max<=max_delay_time;
+delay_2_constraint = delay_time_2_max<=max_delay_time;
+
+constraint = wait_time_1_constraint&wait_time_2_constraint&delay_1_constraint&delay_2_constraint;
+can_combine = any(constraint);

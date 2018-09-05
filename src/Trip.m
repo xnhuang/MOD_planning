@@ -23,17 +23,30 @@ classdef Trip
         function obj = Trip(vehicle,od_set,departure_time,routing_cost_mat,link_uid,w_wait,routing_policy)
             obj.vehicle_id = vehicle.vehicle_id;
             obj.departure_time = departure_time;
-            route_result = tsp_pd_t(vehicle,od_set,routing_cost_mat,link_uid,w_wait,routing_policy);
-            obj.wait_time_list = route_result.wait_time;
-            obj.delay_time_list = route_result.delay_time;
-            obj.total_wait_time = sum(route_result.wait_time);
-            obj.total_delay_time = sum(route_result.delay_time);
-            obj.total_fuel = sum(route_result.fuel_trajectory);
-            obj.violate_wait_time = route_result.wait_time_violation_status;
-            obj.violate_delay_time = route_result.delay_time_violation_status;
-            obj.customer_location_sequence = route_result.location_trajectory;
-            obj.customer_location_time = route_result.accu_travel_time;
-            obj.customer_onboard_sequence = route_result.onboard_num;
+            if numel(od_set)>1
+                route_result = tsp_pd_t(vehicle,od_set,routing_cost_mat,link_uid,w_wait,routing_policy);
+                obj.wait_time_list = route_result.wait_time;
+                obj.delay_time_list = route_result.delay_time;
+                obj.total_wait_time = sum(route_result.wait_time);
+                obj.total_delay_time = sum(route_result.delay_time);
+                obj.total_fuel = sum(route_result.fuel_trajectory);
+                obj.violate_wait_time = route_result.wait_time_violation_status;
+                obj.violate_delay_time = route_result.delay_time_violation_status;
+                obj.customer_location_sequence = route_result.location_trajectory;
+                obj.customer_location_time = route_result.accu_travel_time;
+                obj.customer_onboard_sequence = route_result.onboard_num;
+            else
+                obj.wait_time_list = routing_cost_mat{1}(link_uid==vehicle.location,link_uid==od_set{1}.origin);
+                obj.delay_time_list = 0;
+                obj.total_wait_time = obj.wait_time_list;
+                obj.total_delay_time = 0;
+                obj.total_fuel = routing_cost_mat{2}(link_uid==vehicle.location,link_uid==od_set{1}.origin)+routing_cost_mat{2}(link_uid==od_set{1}.origin,link_uid==od_set{1}.destination);
+                obj.violate_wait_time = obj.total_wait_time>od_set{1}.max_wait_time;
+                obj.violate_delay_time = 0;
+                obj.customer_location_sequence = [vehicle.location;od_set{1}.origin;od_set{1}.destination];
+                obj.customer_location_time = [0;obj.wait_time_list;routing_cost_mat{1}(link_uid==vehicle.location,link_uid==od_set{1}.origin)+routing_cost_mat{1}(link_uid==od_set{1}.origin,link_uid==od_set{1}.destination)];
+                obj.customer_onboard_sequence = [0;1;0];
+            end
             obj.customer_id_list = cellfun(@(x) x.customer_id,od_set);
             if length(obj.customer_id_list)>length(unique(obj.customer_id_list))
                 fprintf('repeated customer\n')
@@ -61,14 +74,15 @@ classdef Trip
             time_grid = (obj.departure_time:1:max(time_uniq))';
             if length(time_uniq)==1
                 obj.link_sequence = [time_uniq link_sequence_uniq_time(:,1)];
-                obj.vehicle_trajectory = [time_grid link_sequence_uniq_time(:,1) obj.customer_onboard_sequence(end)];
+                obj.vehicle_trajectory = [time_grid link_sequence_uniq_time(:,1) obj.customer_onboard_sequence(end) link_sequence_uniq_time(:,3)];
             else
                 link_trajectory = interp1(time_uniq,link_sequence_uniq_time(:,1),time_grid,'nearest');
+                fuel_trajectory = interp1(time_uniq,link_sequence_uniq_time(:,3),time_grid);
                 [uniq_loc_time,uniq_loc_time_id] = unique(obj.customer_location_time);
                 onboard_trajectory = interp1(uniq_loc_time,obj.customer_onboard_sequence(uniq_loc_time_id),time_grid-time_grid(1),'previous');
                 onboard_trajectory(end) = 0;
                 obj.link_sequence = [time_uniq link_sequence_uniq_time(:,1)];
-                obj.vehicle_trajectory = [time_grid link_trajectory onboard_trajectory];
+                obj.vehicle_trajectory = [time_grid link_trajectory onboard_trajectory fuel_trajectory];
             end
             if length(obj.customer_id_list)>length(unique(obj.customer_id_list))
                 fprintf('repeated customer\n')
@@ -114,5 +128,6 @@ function route = recover_route(origin,destination,routing_cost_mat,map,link_uid,
         fuel_sequence = [fuel_sequence;fuel_cost];
     end
     time_sequence_accu = cumsum(time_sequence);
-    route = [link_sequence,time_sequence_accu,fuel_sequence];
+    fuel_sequence_accu = cumsum(fuel_sequence);
+    route = [link_sequence,time_sequence_accu,fuel_sequence_accu];
 end

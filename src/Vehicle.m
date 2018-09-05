@@ -71,8 +71,20 @@ classdef Vehicle
             end
             obj.pickup_location = cellfun(@(x) x.origin,customer_list_vehicle);
             obj.dropoff_location = cellfun(@(x) x.destination,customer_list_vehicle);
+            obj.in_use = 1;
         end
-        function [obj,customer_list,map,customer_delivered] = update_state(obj,time_step,customer_list,map)
+        function obj = assign_empty_trip(obj,trip)
+            %             if ~isempty(obj.trip)
+            %                 fprintf('reassign trip\n')
+            %             end
+            obj.trip = trip;
+            obj.current_location_list = 1;
+            obj.trip.customer_id_list = [];
+            obj.pickup_location = [];
+            obj.dropoff_location = [];
+            obj.in_use = 0;
+        end
+        function [obj,customer_list,map,customer_delivered] = update_state(obj,time_step,customer_list,map,current_time)
             customer_delivered = {};
             if ~isempty(obj.trip)
                 obj.on_link_time = obj.on_link_time+time_step;
@@ -97,9 +109,11 @@ classdef Vehicle
                                     if ~isempty(customer_id_pickup)
                                         customer_list_pickup = customer_list(customer_id_pickup);
                                         for customer_pick_ip = 1:size(customer_list_pickup,1)
-                                            %                                             customer_list_pickup{customer_pick_ip}.max_delay_time = customer_list_pickup{customer_pick_ip}.max_delay_time-customer_list_pickup{customer_pick_ip}.max_wait_time;
+                                            
                                             customer_list_pickup{customer_pick_ip}.max_wait_time = 0;
-                                            customer_list_pickup{customer_pick_ip}.pickup_time = customer_list_pickup{customer_pick_ip}.in_pool_time+partial_time_step;
+                                            if customer_list_pickup{customer_pick_ip}.pickup_time==-1
+                                                customer_list_pickup{customer_pick_ip}.pickup_time = current_time+partial_time_step;
+                                            end
                                         end
                                         obj.onboard=[obj.onboard;customer_list_pickup];
                                         customer_id_keep = setdiff(customer_id_total_list,customer_id);
@@ -117,7 +131,7 @@ classdef Vehicle
                                         customer_delivered = obj.onboard(customer_id_drop_index(customer_id_drop_index>0));
                                         obj.onboard = obj.onboard(customer_id_keep_index(customer_id_keep_index>0));
                                         for deliver_index = 1:numel(customer_delivered)
-                                            customer_delivered{deliver_index}.delivery_time = customer_delivered{deliver_index}.in_pool_time+partial_time_step;
+                                            customer_delivered{deliver_index}.delivery_time = current_time+partial_time_step;
                                         end
                                     end
                                 end
@@ -155,7 +169,7 @@ classdef Vehicle
                                 customer_delivered = obj.onboard(customer_id_drop_index(customer_id_drop_index>0));
                                 obj.onboard = obj.onboard(customer_id_keep_index(customer_id_keep_index>0));
                                 for deliver_index = 1:numel(customer_delivered)
-                                    customer_delivered{deliver_index}.delivery_time = customer_delivered{deliver_index}.in_pool_time;
+                                    customer_delivered{deliver_index}.delivery_time = current_time;
                                 end
                             end
                             obj = obj.park_vehicle();
@@ -174,7 +188,7 @@ classdef Vehicle
                         customer_delivered = obj.onboard(customer_id_drop_index(customer_id_drop_index>0));
                         obj.onboard = obj.onboard(customer_id_keep_index(customer_id_keep_index>0));
                         for deliver_index = 1:numel(customer_delivered)
-                            customer_delivered{deliver_index}.delivery_time = customer_delivered{deliver_index}.in_pool_time;
+                            customer_delivered{deliver_index}.delivery_time = current_time;
                         end
                     end
                     obj = obj.park_vehicle();

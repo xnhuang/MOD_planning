@@ -108,7 +108,7 @@ for customer_id_ego = 1:size(customer_list,1)
             customer_adj_mat_row(customer_id_remain) = customer_graph_last{customer_graph_id_last==customer_ego.customer_id};
             for customer_id = 1:numel(customer_list_new)
                 customer = customer_list_new{customer_id};
-                if pairwise_demand_edge(customer,customer_ego,tt_mat,link_uid)
+                if pairwise_demand_edge(customer,customer_ego,tt_mat,link_uid,current_time)
                     customer_adj_mat_row(customer_id_list==customer.customer_id) = 1;
                 end
             end
@@ -116,7 +116,7 @@ for customer_id_ego = 1:size(customer_list,1)
             for customer_id = 1:size(customer_list,1)
                 if customer_id ~= customer_id_ego
                     customer = customer_list{customer_id};
-                    if pairwise_demand_edge(customer,customer_ego,tt_mat,link_uid)
+                    if pairwise_demand_edge(customer,customer_ego,tt_mat,link_uid,current_time)
                         customer_adj_mat_row(customer_id_list==customer.customer_id) = 1;
                     end
                 end
@@ -128,14 +128,14 @@ for customer_id_ego = 1:size(customer_list,1)
         customer_vehicle_connection_mat_row(vehicle_id_remain_idle) = vehicle_graph_last_idling{customer_graph_id_last==customer_ego.customer_id};
         for vehicle_id = 1:numel(vehicle_list_nonidle)
             vehicle = vehicle_list_nonidle{vehicle_id};
-            if pairwise_demand_vehicle_edge(customer_ego,vehicle,tt_mat,link_uid)
+            if pairwise_demand_vehicle_edge(customer_ego,vehicle,tt_mat,link_uid,current_time)
                 customer_vehicle_connection_mat_row(vehicle_id_list==vehicle.vehicle_id) = 1;
             end
         end
     else
         for vehicle_id = 1:fleet_size
             vehicle = vehicle_list{vehicle_id};
-            if pairwise_demand_vehicle_edge(customer_ego,vehicle,tt_mat,link_uid)
+            if pairwise_demand_vehicle_edge(customer_ego,vehicle,tt_mat,link_uid,current_time)
                 customer_vehicle_connection_mat_row(vehicle_id_list==vehicle.vehicle_id) = 1;
             end
         end

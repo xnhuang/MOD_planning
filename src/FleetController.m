@@ -25,8 +25,10 @@ classdef FleetController
         max_clique_size
         w_wait
         balance_weight
+        balance_weight_idle
         discount_factor
         idle_balance
+        rebalance_radius
     end
     
     methods
@@ -42,8 +44,10 @@ classdef FleetController
             max_clique_size,...
             w_wait,...
             balance_weight,...
+            balance_weight_idle,...
             discount_factor,...
-            idle_balance)
+            idle_balance,...
+            rebalance_radius)
             % constructor of FleetController class
             % initialize controller parameters and internal variables
             
@@ -66,12 +70,13 @@ classdef FleetController
             obj.max_clique_size = max_clique_size;
             obj.w_wait = w_wait;
             obj.balance_weight = balance_weight;
+            obj.balance_weight_idle = balance_weight_idle;
             obj.discount_factor = discount_factor;
             obj.idle_balance = idle_balance;
-            
-            if obj.idle_balance == 1
-                obj = obj.compute_cluster_center_trip();
-            end
+            obj.rebalance_radius=rebalance_radius;
+%             if obj.idle_balance == 1
+%                 obj = obj.compute_cluster_center_trip();
+%             end
         end
         
         
@@ -153,11 +158,10 @@ classdef FleetController
                         obj.cluster_index,...
                         obj.cluster_centroid_link,...
                         demand_distribution,...
-                        obj.balance_weight,...
+                        obj.balance_weight_idle,...
                         obj.time_step,...
-                        obj.cluster_center_trip,...
-                        obj.discount_factor,...
-                        obj.routing_policy_rebalance_idle);
+                        obj.routing_policy_rebalance_idle,...
+                        obj.rebalance_radius);
         end
         
         

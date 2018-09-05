@@ -1,4 +1,4 @@
-function vehicle_list_out = trip_matching_rebalance_idle(vehicle_list,customer_list,tt_mat,fc_mat,link_uid,map,w_wait,current_time,cluster_index,cluster_centroid,demand_distribution,balance_weight,time_step,cluster_center_trip,discount_factor,routing_policy)
+function vehicle_list_out = trip_matching_rebalance_idle(vehicle_list,customer_list,routing_cost,link_uid,map,w_wait,current_time,cluster_index,cluster_centroid,demand_distribution,balance_weight,time_step,routing_policy,rebalance_radius)
 if isempty(customer_list)
     vehicle_list_out = vehicle_list;
     return
@@ -41,147 +41,104 @@ for cluster_id = 1:cluster_size
     cluster_centroid_curr = cluster_centroid(cluster_id);
     customer_virtual_list{cluster_id} = Customer(cluster_id,cluster_centroid_curr,cluster_centroid_curr,inf,inf,1);
 end
-% customer_ignored_list = customer_list(~ismember(total_customer_id_list,assigned_customer_id));
-customer_wait_time_mat = -1*ones(size(customer_virtual_list,1),size(idling_vehicle_list,1));
-trip_vehicle_mat = zeros(size(customer_virtual_list,1),size(idling_vehicle_list,1));
-trip_customer_mat = zeros(size(customer_virtual_list,1),size(idling_vehicle_list,1));
-% trip_mat = cell(size(customer_virtual_list,1),size(idling_vehicle_list,1));
-% tic
-for customer_id = 1:size(customer_virtual_list,1)
-    customer = customer_virtual_list{customer_id};
-%     customer_list_out{customer_list_id==customer.customer_id}.rebalance = 1;
-    for vehicle_id = 1:size(idling_vehicle_list,1)
-        vehicle = idling_vehicle_list{vehicle_id};
-        origin_region = cluster_index(link_uid==vehicle.location);
-        destination_region = cluster_index(link_uid==customer.destination);
-        if origin_region ~= destination_region
-%         trip = Trip(vehicle,{customer},current_time,tt_mat,link_uid,w_wait);
-%         trip_mat{customer_id,vehicle_id} = trip;
-            [~,customer_wait_time] = pairwise_demand_vehicle_edge(customer,vehicle,tt_mat,link_uid);
-            customer_wait_time_mat(customer_id,vehicle_id) = customer_wait_time;
-    %         customer_wait_time_mat(customer_id,vehicle_id) = trip.wait_time_list(1);
-            trip_vehicle_mat(customer_id,vehicle_id) = vehicle.vehicle_id;
-            trip_customer_mat(customer_id,vehicle_id) = customer.customer_id;
-%         destination_list_time = trip.vehicle_trajectory(time_step:end,1);
-%         destination_list_time = destination_list_time - destination_list_time(1)+1;
-        end
-    end
-end
-% toc
-trip_vehicle = reshape(trip_vehicle_mat',[],1);
-trip_customer = reshape(trip_customer_mat',[],1);
-customer_wait_time = reshape(customer_wait_time_mat',[],1);
-trip_vehicle = trip_vehicle(customer_wait_time>0);
-trip_customer = trip_customer(customer_wait_time>0);
-customer_wait_time = customer_wait_time(customer_wait_time>0);
 
-% trip_list = reshape(trip_mat',[],1);
-
-idling_vehicle_id = cellfun(@(x) x.vehicle_id, idling_vehicle_list);
-ignored_customer_id = cellfun(@(x) x.customer_id, customer_virtual_list);
-trip_vehicle_indicator_mat = zeros(size(idling_vehicle_list,1),length(customer_wait_time));
-trip_customer_indicator_mat = zeros(size(customer_virtual_list,1),length(customer_wait_time));
-unnormal_kl_vehicle = 1e-20*ones(size(customer_wait_time,1),1);
-unnormal_kl_empty_vehicle = 1e-20*ones(size(idling_vehicle_list,1),1);
-% tic
+trip_mat = cell(size(idling_vehicle_list,1),1);
+tic
+origin_distribution = sum(demand_distribution,1);
 for vehicle_id = 1:size(idling_vehicle_list,1)
-    vehicle = idling_vehicle_list{idling_vehicle_id==idling_vehicle_id(vehicle_id)};
-    origin_region = cluster_index(link_uid==vehicle.location);
-    demand_pdf_empty_vehicle = demand_distribution(:,origin_region);
-%     unnormal_kl_empty_vehicle(vehicle_list_id==trip.vehicle_id) =
-%     mean(demand_pdf_empty_vehicle)*log(vehicle.capacity);
-    unnormal_kl_empty_vehicle(idling_vehicle_id==vehicle_id) = mean(demand_pdf_empty_vehicle)*(log(vehicle.capacity)-log(space_available));
-end
-% for trip_id = 1:size(customer_wait_time,1)
-%     trip_vehicle_indicator_mat(idling_vehicle_id == trip_vehicle(trip_id),trip_id) = 1;
-%     trip_customer_indicator_mat(ignored_customer_id == trip_customer(trip_id),trip_id) = 1;
-% end
-% toc
-% tic
-for trip_id = 1:size(customer_wait_time,1)
-    trip_vehicle_indicator_mat(idling_vehicle_id == trip_vehicle(trip_id),trip_id) = 1;
-    trip_customer_indicator_mat(ignored_customer_id == trip_customer(trip_id),trip_id) = 1;
+    vehicle = idling_vehicle_list{vehicle_id};
+    vehicle_location = vehicle.location;
+    origin_region = cluster_index(link_uid==vehicle_location);
+    tt_loc = routing_cost{1}(link_uid==vehicle_location,:);
+    feasible_dest = link_uid(tt_loc<time_step*rebalance_radius);
+    [~,destination_id] = ismember(feasible_dest,link_uid);
+    cluster_dest = cluster_index(destination_id);
+    feasible_dest = feasible_dest(cluster_dest~=origin_region);
+    cluster_dest = cluster_dest(cluster_dest~=origin_region);
+    [~,cluster_dest_id] = ismember(cluster_dest,1:length(cluster_centroid));
+    cluster_dest_centroid = cluster_centroid(cluster_dest_id);
+    cluster_center_dist = zeros(length(cluster_dest),1);
     
-%     trip = trip_list{trip_id};
-    vehicle = idling_vehicle_list{idling_vehicle_id==trip_vehicle(trip_id)};
-    customer = customer_virtual_list{ignored_customer_id==trip_customer(trip_id)};
-    origin_region = cluster_index(link_uid==vehicle.location);
-    destination_region = cluster_index(link_uid==customer.destination);
-    trip = cluster_center_trip{origin_region,destination_region};
-%     demand_pdf_empty_vehicle = demand_distribution(:,origin_region);
-%     unnormal_kl_empty_vehicle(vehicle_list_id==trip.vehicle_id) =
-%     mean(demand_pdf_empty_vehicle)*log(vehicle.capacity);
-%     unnormal_kl_empty_vehicle(idling_vehicle_id==trip.vehicle_id) = mean(demand_pdf_empty_vehicle)*(log(vehicle.capacity)-log(space_available));
-%     destination_list = trip.customer_location_sequence(2:end);
-%     destination_list_time = trip.customer_location_time(2:end);
-%     destination_list = destination_list(destination_list_time>0);
-    if time_step>=length(trip.vehicle_trajectory)
-        destination_list = trip.vehicle_trajectory(end,2);
-        [~,destination_id] = ismember(destination_list,link_uid);
-        destination_region = cluster_index(destination_id);
-        demand_pdf = demand_distribution(:,destination_region);
-    %     unnormal_kl_vehicle(trip_id) = mean(demand_pdf)*log(available_space_vehicle);
-        unnormal_kl_vehicle(trip_id) = mean(demand_pdf)*(log(vehicle.capacity)-log(space_available));
-        if isnan(unnormal_kl_vehicle(trip_id))
-            fprintf('error')
-        end
-    else
-        destination_list = trip.vehicle_trajectory(time_step:end,2);
-        destination_list_time = trip.vehicle_trajectory(time_step:end,1);
-        destination_list_time = destination_list_time - destination_list_time(1)+1;
-        destination_list_time_step = floor(destination_list_time/time_step);
-        [~,destination_id] = ismember(destination_list,link_uid);
-        destination_region = cluster_index(destination_id);
-        demand_pdf = demand_distribution(:,destination_region);
-        demand_pdf = mean(demand_pdf,1)';
-        discount_factor_vec = discount_factor.^(destination_list_time_step);
-        unnormal_kl_vehicle(trip_id) = sum(demand_pdf.*(log(vehicle.capacity)-log(space_available)).*discount_factor_vec)/sum(discount_factor_vec);
-        if isnan(unnormal_kl_vehicle(trip_id))
-            fprintf('error')
-        end
+    for cluster_dest_id = 1:length(cluster_dest)
+        cluster_center_dist(cluster_dest_id) = routing_cost{1}(link_uid==feasible_dest(cluster_dest_id),link_uid==cluster_dest_centroid(cluster_dest_id));
     end
+    cluster_dest_uniq = unique(cluster_dest);
+    trip_cost = zeros(length(cluster_dest_uniq),1);
+    cluster_dest_link = zeros(length(cluster_dest_uniq),1);
+    unnormal_kl_vehicle = 1e-20*ones(length(cluster_dest_uniq),1);
+    for cluster_dest_id = 1:length(cluster_dest_uniq)
+        cluster_center_dist_cluster = cluster_center_dist(cluster_dest==cluster_dest_uniq(cluster_dest_id));
+        feasible_dest_cluster = feasible_dest(cluster_dest==cluster_dest_uniq(cluster_dest_id));
+        [~,min_dist_id] = min(cluster_center_dist_cluster);
+        cluster_dest_link(cluster_dest_id) = feasible_dest_cluster(min_dist_id);
+        trip_cost(cluster_dest_id) = routing_cost{2}(link_uid==vehicle_location,link_uid==cluster_dest_link(cluster_dest_id));
+        demand_pdf = origin_distribution(cluster_dest_uniq(cluster_dest_id));
+        unnormal_kl_vehicle(cluster_dest_id) = (demand_pdf).*(log(vehicle.capacity)-log(space_available));
+    end
+    cluster_dest_link = [cluster_dest_link;vehicle_location];
+    trip_cost = [trip_cost;0];
+    trip_vehicle_id = vehicle_id*ones(length(trip_cost),1);
+    origin_list = vehicle_location*ones(length(trip_cost),1);
+    demand_pdf = origin_distribution(origin_region);
+    unnormal_kl_vehicle = [unnormal_kl_vehicle;(demand_pdf).*(log(vehicle.capacity)-log(space_available))];
+
+    trip_mat{vehicle_id} = {cluster_dest_link origin_list trip_cost unnormal_kl_vehicle trip_vehicle_id};
+end
+
+toc
+% trip_list = reshape(trip_mat',[],1);
+trip_list = vertcat(trip_mat{:});
+dest_list = trip_list(:,1);
+origin_list = trip_list(:,2);
+fc_cost_list = trip_list(:,3);
+kl_cost_list = trip_list(:,4);
+veh_id_list = trip_list(:,5);
+dest_list = vertcat(dest_list{:});
+origin_list = vertcat(origin_list{:});
+fc_cost_list = vertcat(fc_cost_list{:});
+kl_cost_list = vertcat(kl_cost_list{:});
+veh_id_list = vertcat(veh_id_list{:});
+
+trip_vehicle_indicator_mat = zeros(size(idling_vehicle_list,1),length(veh_id_list));
+
+for trip_id = 1:length(veh_id_list)
+    trip_vehicle_indicator_mat(veh_id_list(trip_id),trip_id) = 1;
 end
 % toc
 % tic
 b_vehicle = ones(size(idling_vehicle_list,1),1);
-b_customer = ones(size(customer_virtual_list,1),1);
 
 variableType = 'B';
-variableTypeCell = cell(1,length(customer_wait_time)+size(idling_vehicle_list,1));
+variableTypeCell = cell(1,length(fc_cost_list));
 [variableTypeCell{:}] = deal(variableType);
 variableTypeChar = char(variableTypeCell{:});
 
 clear model;
 model.A = sparse([...
-    trip_vehicle_indicator_mat eye(size(idling_vehicle_list,1));
-    trip_customer_indicator_mat zeros(size(customer_virtual_list,1),size(idling_vehicle_list,1))]);
-model.rhs = [b_vehicle;b_customer];
+    trip_vehicle_indicator_mat]);
+model.rhs = [b_vehicle];
 model.obj = [
-    (1-balance_weight)*customer_wait_time - balance_weight*10000*unnormal_kl_vehicle;...
-    -balance_weight*10000*unnormal_kl_empty_vehicle
+    (1-balance_weight)*fc_cost_list - balance_weight*10000*kl_cost_list;
     ];
 model.modelsense = 'min';
 model.vtype = variableTypeChar;
 params.outputflag = 0;
 model.sense = [
-    repmat('=', length(b_vehicle), 1);
-    repmat('<', length(b_customer), 1)];
+    repmat('=', length(b_vehicle), 1)];
 
 result = gurobi(model, params);
 % toc
-trip_assignment = result.x(1:size(customer_wait_time,1));
-vehicle_assignment = trip_vehicle(trip_assignment>0);
-customer_assignment = trip_customer(trip_assignment>0);
-trip_list_out = cell(sum(trip_assignment),1);
-for trip_id = 1:size(vehicle_assignment,1)
-    vehicle_id = vehicle_assignment(trip_id);
-    customer_id = customer_assignment(trip_id);
-    vehicle = vehicle_list{idling_vehicle_id==vehicle_id};
-    customer = customer_virtual_list(ignored_customer_id==customer_id);
-    trip = Trip(vehicle,customer,current_time,{tt_mat,fc_mat},link_uid,w_wait,routing_policy);
-    trip = trip.reconstruct_route({tt_mat,fc_mat},link_uid,map);
-    trip_list_out{trip_id} = trip;
-    vehicle_list_out{vehicle_list_id==vehicle_id} = vehicle_list_out{vehicle_list_id==vehicle_id}.assign_trip(trip,customer_virtual_list);
+trip_assignment = result.x(1:size(fc_cost_list,1));
+destination_list_out = dest_list(trip_assignment==1);
+origin_list_out = origin_list(trip_assignment==1);
+vehicle_id_list_out = veh_id_list(trip_assignment==1);
+fc_trip_out = fc_cost_list(trip_assignment==1);
+for trip_id = 1:size(vehicle_id_list_out,1)
+    if fc_trip_out(trip_id)>0
+        trip = Trip(idling_vehicle_list{vehicle_id_list_out(trip_id)},{Customer(trip_id,destination_list_out(trip_id),destination_list_out(trip_id),inf,inf,1)},current_time,routing_cost,link_uid,w_wait,routing_policy);
+        trip = trip.reconstruct_route(routing_cost,link_uid,map);
+        trip_list_out{trip_id} = trip;
+        vehicle_list_out{vehicle_list_id==trip.vehicle_id} = vehicle_list_out{vehicle_list_id==trip.vehicle_id}.assign_empty_trip(trip);
+    end
 end
-% assigned_trip_out = [assigned_trip;trip_list_out];
 vehicle_list_out = [vehicle_list_out;vehicle_list_rebalance];

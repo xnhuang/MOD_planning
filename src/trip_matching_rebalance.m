@@ -43,7 +43,7 @@ for customer_id = 1:size(customer_ignored_list,1)
 %     customer_list_out{customer_list_id==customer.customer_id}.rebalance = 1;
     for vehicle_id = 1:size(idling_vehicle_list,1)
         vehicle = idling_vehicle_list{vehicle_id};
-        [~,customer_wait_time] = pairwise_demand_vehicle_edge(customer,vehicle,tt_mat,link_uid);
+        [~,customer_wait_time] = pairwise_demand_vehicle_edge(customer,vehicle,tt_mat,link_uid,current_time);
         customer_wait_time_mat(customer_id,vehicle_id) = customer_wait_time;
         customer_inpool_time_mat(customer_id,vehicle_id) = customer.in_pool_time;
         trip_vehicle_mat(customer_id,vehicle_id) = vehicle.vehicle_id;

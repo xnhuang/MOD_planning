@@ -1,14 +1,14 @@
 clear,close all;clc;
-load('polaris_17_18_trip_location_associate_link.mat')
-load('polaris_17_18_linkMOE_mean.mat')
+load('C:\Users\xnhuang\OneDrive - umich.edu\MultihopRideShare\RegionRideShare\Mora2017_implementation\polaris_17_18_trip_location_associate_link.mat')
+load('C:\Users\xnhuang\OneDrive - umich.edu\MultihopRideShare\RegionRideShare\Mora2017_implementation\polaris_17_18_linkMOE_mean.mat')
 save_results = 1;
 
 current_path = [pwd,'\'];
-partition_path = strrep(current_path,'RegionRideShare\Mora2017_implementation','TrafficModel\network_partition');
+partition_path = strrep(current_path,'RegionRideShare\MOD_planning','TrafficModel\network_partition');
 load([partition_path,'partition_gmm_maxIter10000.mat']);
 
 graph_db_name = 'annarbor-Supply.sqlite';
-network_db_path = strrep(current_path,'RegionRideShare\Mora2017_implementation','Data\Network');
+network_db_path = strrep(current_path,'RegionRideShare\MOD_planning','Data\Network');
 map = parse_network(graph_db_name,network_db_path);
 
 load('gmr_spd_lim_ind_p00005_idle_fil_resample_test.mat');
@@ -16,10 +16,10 @@ fc_mdl = struct('fc_mdl','fc_mdl_parameter');
 [fc_mdl(:).std_input_param]                  = deal(std_input_param);
 [fc_mdl(:).gmm_cell]                         = deal(layer1_unsup_gmm_cell);
 [fc_mdl(:).spd_limit_list]                   = deal(spd_limit_list);
-result_db_name = 'polaris_17_18_linkMOE_mean.mat';
+result_db_name = 'C:\Users\xnhuang\OneDrive - umich.edu\MultihopRideShare\RegionRideShare\Mora2017_implementation\polaris_17_18_linkMOE_mean.mat';
 map = parse_linkMOE(map,'model_parameter',fc_mdl,'traffic_cost','mat_file_name',result_db_name);
 
-load('all2all_tt_filter.mat')   % all2all travel time from polaris simulation historical cost
+load('..\offline_travel_time\all2all_tt_filter.mat')   % all2all travel time from polaris simulation historical cost
 % filter demand according to link list
 location_list_link = 2*location_list.link+location_list.dir;
 location_list = location_list(ismember(location_list_link,link_uid),:);
@@ -46,7 +46,7 @@ demand_state_matrix = reshape(demand_region_normal,cluster_size,cluster_size);
 
 %% initialize fleet and demand
 vehicle_capacity = 4;
-fleet_size = 700;
+fleet_size = 900;
 max_clique_size = vehicle_capacity;
 max_wait_time = 2*60;
 max_delay_time = 4*60;
@@ -87,9 +87,10 @@ for time_id = 1:length(time_grid)
     parfor customer_id = 1:round(size(origin_list,1)*demand_sample_ratio)
         origin = origin_link_list(customer_id_list_sample(customer_id));
         destination = destination_link_list(customer_id_list_sample(customer_id));
+        fastest_tt = tt_mat(link_uid==origin,link_uid==destination);
         current_wait_time = inf;
         current_delay_time = inf;
-        customer_list_new{customer_id} = Customer(customer_id+customer_id_offset,origin,destination,max_wait_time,max_delay_time,0);
+        customer_list_new{customer_id} = Customer(customer_id+customer_id_offset,time_grid(time_id),origin,destination,max_wait_time,max_delay_time,0,fastest_tt);
     end
     customer_id_offset = max(cellfun(@(x) x.customer_id,customer_list_new));
     customer_list_log{time_id} = customer_list_new;
@@ -100,7 +101,7 @@ save_name = ['test_demand_ratio_',num2str(demand_sample_ratio),...
     '_capacity_',num2str(vehicle_capacity),...
     '_duration_',num2str(duration),...
     '_timestep_',num2str(time_step),'.mat'];
-save_path = 'test_case\';
+save_path = '..\test_case\';
 save([save_path,save_name],...
     'vehicle_list',...
     'customer_list_log');

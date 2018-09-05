@@ -53,14 +53,22 @@ classdef Link
             % input: current_vehicle_cout
             % output: current_density, current_speed
             obj.current_density = obj.current_vehicle_count/obj.lane_number/obj.link_length; % vehicle density, veh/ln/m
-            density_mi = mi2m(obj.current_density);
+            if ~isreal(obj.current_density)
+                error('complex speed');
+            end
+            density_mi = (mi2m(obj.current_density));
+            if ~isreal(density_mi)
+                error('complex speed');
+            end
             freeway_type_collection = {'EXPRESSWAY','COLLECTOR','RAMP'};
             highway_type_collection = {'MAJOR','MINOR'};
             urban_type_collection = {'LCOAL','MAJOR','MINOR'};
             iteration_limit = 20;
             current_speed_ini = obj.speed_limit_mph;
             ff_spd = 0;
+            link_type = 0;
             if ismember(obj.link_type,freeway_type_collection) && obj.speed_limit_mph>=55
+                link_type = 1;
                 % freeway
                 break_point_list = [1000:200:1800];
                 capacity_list = [2400,2400,2350,2300,2250];
@@ -88,6 +96,7 @@ classdef Link
             elseif (ismember(obj.link_type,highway_type_collection) && obj.speed_limit_mph>=45) ...
                     || (ismember(obj.link_type,freeway_type_collection) && obj.speed_limit_mph<55)
                 % highway
+                link_type = 2;
                 divider_list = [800:-100:500];
                 coeff_list = [5,3.78,3.49,2.78];
                 speed_limit_list = (60:-5:45);
@@ -107,7 +116,7 @@ classdef Link
                 for iteration_id = 1:iteration_limit
                     flow_rate = obj.current_speed.*density_mi;
                     flow_rate(flow_rate>=capacity) = capacity;
-                    obj.current_speed = bffs-coeff*((flow_rate-1400)/divider).^1.31;
+                    obj.current_speed = real(bffs-coeff*((flow_rate-1400)/divider).^1.31);
                     obj.current_speed(density_mi<=critical_density_mi) = bffs;
 %                     current_speed_cell{iteration_id} = current_speed;
 %                     flow_rate_cell{iteration_id} = flow_rate;
@@ -116,6 +125,7 @@ classdef Link
                 end
                 ff_spd = bffs;
             else
+                link_type = 3;
                 % urban
                 speed_limit_list = 25:5:55;
                 speed_constant_list = [37.4,39.7,42.1,44.4,46.8,49.1,51.5];
@@ -151,6 +161,9 @@ classdef Link
 %             end
 %             obj.current_speed = obj.current_speed/ff_spd*ffspd_polaris;
             obj.current_speed = mph2mps(obj.current_speed);
+            if ~isreal(obj.current_speed)
+                error('complex speed');
+            end
             obj.model_sim_fail=0;
             if isnan(obj.current_speed)
                 obj.current_speed = obj.speed_limit;

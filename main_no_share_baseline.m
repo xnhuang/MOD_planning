@@ -203,12 +203,15 @@ for time_id = 1:length(time_grid)
             customer_list_new,...
             vehicle_list, ...
             current_time);
+    [vehicle_list,map] = network_sim(vehicle_list, map, time_step_size, time_step, current_time);
+    [vehicle_list,customer_list,customer_delivered] = network_sim_update_demand(vehicle_list, customer_list,time_step);
+    fleet_controller = fleet_controller.update_map(map);
     %   general fleet state
     total_customer = total_customer+size(customer_list_new,1);
     onboard = cellfun(@(x) size(x.onboard,1),vehicle_list);
     total_onboard = sum(onboard);
     total_onboard_log(time_id) = total_onboard;
-    delivered = total_customer-total_onboard-size(customer_list,1);
+    delivered = total_customer-total_onboard;
     delivered_log(time_id) = delivered;
     new_demand = size(customer_list_new,1);
     new_demand_id = cellfun(@(x) x.customer_id,customer_list_new);
@@ -256,13 +259,8 @@ for time_id = 1:length(time_grid)
     customer_id_assigned_trip = cellfun(@(x) x.customer_id_list,vehicle_trip,'uniformoutput',false);
     customer_id_assigned_trip = vertcat(customer_id_assigned_trip{:});
     
-    fprintf('customer assignment gap assignment = %d\n',length(customer_id_assigned_trip) - length(unique(customer_id_assigned_trip)));
-
-    %   update netowrk state
-    [vehicle_list,map] = network_sim(vehicle_list, map, time_step_size, time_step, current_time);
-    [vehicle_list,customer_list,customer_delivered] = network_sim_update_demand(vehicle_list, customer_list,time_step);
+    fprintf('customer assignment gap assignment = %d\n',length(customer_id_assigned_trip) - length(unique(customer_id_assigned_trip))); 
     
-    fleet_controller = fleet_controller.update_map(map);
     
     link_list_log{time_id} = map.link_list;
     customer_delivered_log{time_id} = customer_delivered;

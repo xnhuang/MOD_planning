@@ -1,4 +1,5 @@
 clear,close all;clc;
+addpath('src');
 load('C:\Users\xnhuang\OneDrive - umich.edu\MultihopRideShare\RegionRideShare\Mora2017_implementation\polaris_17_18_trip_location_associate_link.mat')
 load('C:\Users\xnhuang\OneDrive - umich.edu\MultihopRideShare\RegionRideShare\Mora2017_implementation\polaris_17_18_linkMOE_mean.mat')
 save_results = 1;
@@ -48,8 +49,8 @@ demand_state_matrix = reshape(demand_region_normal,cluster_size,cluster_size);
 vehicle_capacity = 4;
 fleet_size = 900;
 max_clique_size = vehicle_capacity;
-max_wait_time = 2*60;
-max_delay_time = 4*60;
+max_wait_time = 3*60;
+max_delay_time = 6*60;
 w_wait = 0.5;
 demand_sample_ratio = 0.2;
 % define vehicle and customer structure
@@ -84,13 +85,24 @@ for time_id = 1:length(time_grid)
     customer_list_new = cell(round(size(origin_list,1)*demand_sample_ratio),1);
     customer_id_list = 1:length(origin_list);
     customer_id_list_sample = datasample(customer_id_list,round(size(origin_list,1)*demand_sample_ratio),'Replace',false);
-    parfor customer_id = 1:round(size(origin_list,1)*demand_sample_ratio)
-        origin = origin_link_list(customer_id_list_sample(customer_id));
-        destination = destination_link_list(customer_id_list_sample(customer_id));
-        fastest_tt = tt_mat(link_uid==origin,link_uid==destination);
+    origin_sample = origin_link_list(customer_id_list_sample);
+    destination_sample = destination_link_list(customer_id_list_sample);
+    enter_time_sample = trip_time_fil.start(customer_id_list_sample);
+    [~,origin_index] = ismember(origin_sample,link_uid);
+    [~,destination_index] = ismember(destination_sample,link_uid);
+    tt_index = sub2ind(size(tt_mat),origin_index,destination_index);
+    fastest_tt_sample = tt_mat(tt_index);
+
+    parfor customer_id = 1:length(customer_id_list_sample)
+        origin = origin_sample(customer_id);
+        destination = destination_sample(customer_id);
+        enter_time = enter_time_sample(customer_id);
+        fastest_tt = fastest_tt_sample(customer_id);
         current_wait_time = inf;
         current_delay_time = inf;
-        customer_list_new{customer_id} = Customer(customer_id+customer_id_offset,time_grid(time_id),origin,destination,max_wait_time,max_delay_time,0,fastest_tt);
+        max_wait_time_cust = max_wait_time-(time_grid(time_id)-enter_time);
+        max_delay_time_cust = max_delay_time-(time_grid(time_id)-enter_time);
+        customer_list_new{customer_id} = Customer(customer_id+customer_id_offset,enter_time,origin,destination,max_wait_time_cust,max_delay_time_cust,0,fastest_tt);
     end
     customer_id_offset = max(cellfun(@(x) x.customer_id,customer_list_new));
     customer_list_log{time_id} = customer_list_new;
@@ -100,6 +112,7 @@ save_name = ['test_demand_ratio_',num2str(demand_sample_ratio),...
     '_fleet_',num2str(fleet_size),...
     '_capacity_',num2str(vehicle_capacity),...
     '_duration_',num2str(duration),...
+    '_waittime_',num2str(max_wait_time),...
     '_timestep_',num2str(time_step),'.mat'];
 save_path = '..\test_case\';
 save([save_path,save_name],...

@@ -10,7 +10,7 @@ function [vehicle_list_out,customer_list_out,customer_delivered] = network_sim_u
         [vehicle_active_list{vehicle_id},customer_list_out,customer_delivered_veh]=vehicle_active_list{vehicle_id}.update_state_customer(time_step,customer_list_out);
         customer_delivered = [customer_delivered;customer_delivered_veh];
     end
-    parfor customer_id = 1:size(customer_list_out,1)
+    parfor customer_id = 1:numel(customer_list_out)
         customer_list_out{customer_id}.in_pool_time = customer_list_out{customer_id}.in_pool_time+time_step;
         customer_list_out{customer_id}.max_wait_time = customer_list_out{customer_id}.max_wait_time-time_step;
 %         customer_list_out{customer_id}.max_delay_time = customer_list_out{customer_id}.max_delay_time-time_step;

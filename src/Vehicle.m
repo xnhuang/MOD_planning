@@ -95,6 +95,7 @@ classdef Vehicle
             if ~isempty(obj.trip)
                 obj.on_link_time = obj.on_link_time+time_step;
                 if obj.current_location_list<size(obj.trip.link_sequence,1)
+                    obj.step_trajecotry = obj.trajectory(end,:);
                     if obj.on_link_time>=obj.link_travel_time
                         %                         fprintf('move to new link')
                         %                         map.link_list{map.link_uid==obj.location}.current_vehicle_count
@@ -104,7 +105,6 @@ classdef Vehicle
                         end
                         
                         partial_time_step = 0;
-                        obj.step_trajecotry = [];
                         while obj.on_link_time>=obj.link_travel_time && obj.current_location_list<size(obj.trip.link_sequence,1)
                             
                             link_location = map.link_list{map.link_uid==obj.location};
@@ -130,7 +130,9 @@ classdef Vehicle
                             end
                         end
                     else
-                        obj.step_trajecotry = obj.step_trajecotry(end,:);
+                        if ~isempty(obj.step_trajecotry)
+                            obj.step_trajecotry = obj.step_trajecotry(end,:);
+                        end
                     end
                 else
                     % arrive at destination
@@ -181,19 +183,18 @@ classdef Vehicle
                                     customer_delivered = obj.onboard(customer_id_drop_index(customer_id_drop_index>0));
                                     obj.onboard = obj.onboard(customer_id_keep_index(customer_id_keep_index>0));
                                     for deliver_index = 1:numel(customer_delivered)
-                                        customer_delivered{deliver_index}.delivery_time = max(obj.step_trajecotry(trajectory_loc_id,2),customer_list_pickup{customer_pick_ip}.enter_time);
+                                        customer_delivered{deliver_index}.delivery_time = max(obj.step_trajecotry(trajectory_loc_id,2),customer_delivered{deliver_index}.enter_time);
                                     end
                                 end
                             end
                         end
-                        for customer_onboard_id = 1:length(obj.onboard)
-                            obj.onboard{customer_onboard_id}.origin = trajectory_loc;
-                            obj.onboard{customer_onboard_id}.max_delay_time = obj.onboard{customer_onboard_id}.max_delay_time-time_step;
-                            obj.onboard{customer_onboard_id}.max_delay_time(obj.onboard{customer_onboard_id}.max_delay_time<=0) = 0;
-                            obj.onboard{customer_onboard_id}.in_pool_time = obj.onboard{customer_onboard_id}.in_pool_time+time_step;
-                        end
                     end
-%                     
+                    for customer_onboard_id = 1:length(obj.onboard)
+                        obj.onboard{customer_onboard_id}.origin = trajectory_loc;
+                        obj.onboard{customer_onboard_id}.max_delay_time = obj.onboard{customer_onboard_id}.max_delay_time-time_step;
+                        obj.onboard{customer_onboard_id}.max_delay_time(obj.onboard{customer_onboard_id}.max_delay_time<=0) = 0;
+                        obj.onboard{customer_onboard_id}.in_pool_time = obj.onboard{customer_onboard_id}.in_pool_time+time_step;
+                    end 
                     if obj.current_location_list>=size(obj.trip.link_sequence,1) && isempty(obj.onboard)
                         obj = obj.park_vehicle();
                     end

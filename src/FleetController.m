@@ -208,10 +208,26 @@ classdef FleetController
                     demand_distribution);
             end
         end
-        
-        
+            
         function obj = update_map(obj,map)
             obj.map = map;
+        end
+        function [vehicle_list_out,obj] = fleet_plan_no_share(...
+                obj,...
+                customer_list, ...
+                customer_list_new, ...
+                vehicle_list, ...
+                current_time)
+            vehicle_list_new = cell(numel(customer_list_new),1);
+            for customer_id = 1:numel(customer_list_new)
+                customer = customer_list_new{customer_id};
+                vehicle_list_new{customer_id} = Vehicle(customer.customer_id,1,customer.origin,[],[]);
+                trip = Trip(vehicle_list_new{customer_id},{customer},current_time,obj.routing_cost{obj.routing_policy_assign},obj.link_uid,obj.w_wait,obj.routing_policy_assign);
+                trip = trip.reconstruct_route(obj.routing_cost{obj.routing_policy_assign},obj.link_uid,obj.map);
+                vehicle_list_new{customer_id} = vehicle_list_new{customer_id}.assign_trip(trip,customer_list);
+                vehicle_list_new{customer_id}.in_use = 1;
+            end
+            vehicle_list_out = [vehicle_list;vehicle_list_new];
         end
     end
 end
